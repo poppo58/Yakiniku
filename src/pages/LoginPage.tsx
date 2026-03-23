@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Store, Building2 } from 'lucide-react';
+import logoImage from '../assets/logo.png';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -7,9 +8,8 @@ export function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="mb-10 text-center">
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <span className="text-3xl">🥩</span>
-          <h1 className="text-2xl font-bold text-gray-900">焼肉チェーン 発注管理</h1>
+        <div className="flex items-center justify-center mb-3">
+          <img src={logoImage} alt="焼肉チェーン 発注管理" className="w-[400px] object-contain" />
         </div>
         <p className="text-sm text-gray-500">ログイン先を選択してください</p>
       </div>
