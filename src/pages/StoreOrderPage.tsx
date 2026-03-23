@@ -10,7 +10,7 @@ import { OrderSummaryBar } from '../components/store/OrderSummaryBar';
 import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 
-const INITIAL_CATEGORY: Category = '精肉';
+const INITIAL_CATEGORY: Category = '一般1';
 
 // 送信用の店舗情報（フェーズ2では固定値）
 const STORE_ID = 'STORE-001';
