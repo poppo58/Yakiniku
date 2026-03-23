@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { MOCK_ORDERS } from '../data/mockData';
-import type { Order, OrderStatus } from '../types';
+import { useState, useEffect } from 'react';
+import type { OrderStatus } from '../types';
+import { useOrderStore } from '../store/useOrderStore';
 import { OrderCard } from '../components/center/OrderCard';
 import { StatsBar } from '../components/center/StatsBar';
 
@@ -12,14 +12,40 @@ const STATUS_FILTERS: { label: string; value: OrderStatus | 'すべて' }[] = [
   { label: '完了', value: '完了' },
 ];
 
+// スケルトンローディング
+function OrderSkeleton() {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-full bg-gray-200" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-40 rounded bg-gray-200" />
+          <div className="h-3 w-60 rounded bg-gray-100" />
+        </div>
+        <div className="h-6 w-16 rounded-full bg-gray-200" />
+      </div>
+    </div>
+  );
+}
+
 export function CenterDashboardPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'すべて'>('すべて');
 
-  const filteredOrders: Order[] =
+  const orders = useOrderStore((s) => s.orders);
+  const isLoading = useOrderStore((s) => s.isLoading);
+  const fetchOrders = useOrderStore((s) => s.fetchOrders);
+  const updateStatus = useOrderStore((s) => s.updateStatus);
+  const updateDelivery = useOrderStore((s) => s.updateDelivery);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const filteredOrders =
     statusFilter === 'すべて'
-      ? MOCK_ORDERS
-      : MOCK_ORDERS.filter((o) => o.status === statusFilter);
+      ? orders
+      : orders.filter((o) => o.status === statusFilter);
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -42,7 +68,7 @@ export function CenterDashboardPage() {
 
       <main className="mx-auto max-w-5xl px-4 py-6 space-y-6">
         {/* 統計サマリー */}
-        <StatsBar orders={MOCK_ORDERS} />
+        <StatsBar orders={orders} />
 
         {/* フィルターバー */}
         <div className="flex flex-wrap gap-2">
@@ -59,7 +85,7 @@ export function CenterDashboardPage() {
               {f.label}
               {f.value !== 'すべて' && (
                 <span className="ml-1.5 text-xs opacity-70">
-                  ({MOCK_ORDERS.filter((o) => o.status === f.value).length})
+                  ({orders.filter((o) => o.status === f.value).length})
                 </span>
               )}
             </button>
@@ -68,7 +94,13 @@ export function CenterDashboardPage() {
 
         {/* 発注リスト */}
         <div className="space-y-3">
-          {filteredOrders.length === 0 ? (
+          {isLoading ? (
+            <>
+              <OrderSkeleton />
+              <OrderSkeleton />
+              <OrderSkeleton />
+            </>
+          ) : filteredOrders.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-300 py-12 text-center">
               <p className="text-sm text-gray-400">該当する発注がありません</p>
             </div>
@@ -79,6 +111,8 @@ export function CenterDashboardPage() {
                 order={order}
                 isExpanded={expandedId === order.id}
                 onToggle={() => toggleExpand(order.id)}
+                onStatusChange={(status) => updateStatus(order.id, status)}
+                onDeliveryChange={(itemId, qty) => updateDelivery(order.id, itemId, qty)}
               />
             ))
           )}

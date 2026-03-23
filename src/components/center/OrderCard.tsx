@@ -1,5 +1,6 @@
+import { useRef, useCallback } from 'react';
 import { ChevronDown, ChevronUp, Store } from 'lucide-react';
-import type { Order } from '../../types';
+import type { Order, OrderStatus } from '../../types';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 
@@ -7,10 +8,25 @@ interface OrderCardProps {
   order: Order;
   isExpanded: boolean;
   onToggle: () => void;
+  onStatusChange: (status: OrderStatus) => Promise<void>;
+  onDeliveryChange: (itemId: string, qty: number) => void;
 }
 
-export function OrderCard({ order, isExpanded, onToggle }: OrderCardProps) {
+const STATUS_OPTIONS: OrderStatus[] = ['未確認', '確認済み', '出荷済み', '完了'];
+
+export function OrderCard({
+  order,
+  isExpanded,
+  onToggle,
+  onStatusChange,
+  onDeliveryChange,
+}: OrderCardProps) {
   const total = order.lines.reduce((s, l) => s + l.orderedQty, 0);
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    await onStatusChange(e.target.value as OrderStatus);
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -43,9 +59,27 @@ export function OrderCard({ order, isExpanded, onToggle }: OrderCardProps) {
 
       {isExpanded && (
         <div className="border-t border-gray-100 px-5 pb-5">
-          <p className="pt-3 text-xs text-gray-500 mb-2">
-            発注日時: {new Date(order.orderDate).toLocaleString('ja-JP')}
-          </p>
+          <div className="flex items-center justify-between pt-3 mb-4">
+            <p className="text-xs text-gray-500">
+              発注日時: {new Date(order.orderDate).toLocaleString('ja-JP')}
+            </p>
+            {/* ステータス変更ドロップダウン */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">ステータス:</label>
+              <select
+                value={order.status}
+                onChange={handleStatusChange}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded-md border border-gray-300 py-1 pl-2 pr-7 text-xs font-medium text-gray-700 focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400"
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -58,7 +92,11 @@ export function OrderCard({ order, isExpanded, onToggle }: OrderCardProps) {
               </thead>
               <tbody>
                 {order.lines.map((line) => (
-                  <DeliveryRow key={line.item.id} line={line} />
+                  <DeliveryRow
+                    key={line.item.id}
+                    line={line}
+                    onDeliveryChange={(qty) => onDeliveryChange(line.item.id, qty)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -69,12 +107,26 @@ export function OrderCard({ order, isExpanded, onToggle }: OrderCardProps) {
   );
 }
 
-// 納品数入力行（センター担当者が入力）
+// 納品数入力行（デバウンス 500ms）
 interface DeliveryRowProps {
   line: Order['lines'][number];
+  onDeliveryChange: (qty: number) => void;
 }
 
-function DeliveryRow({ line }: DeliveryRowProps) {
+function DeliveryRow({ line, onDeliveryChange }: DeliveryRowProps) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const qty = Number(e.target.value);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        onDeliveryChange(qty);
+      }, 500);
+    },
+    [onDeliveryChange],
+  );
+
   return (
     <tr className="border-b border-gray-50 last:border-0">
       <td className="py-2.5 pr-4 font-medium text-gray-900">{line.item.name}</td>
@@ -89,10 +141,7 @@ function DeliveryRow({ line }: DeliveryRowProps) {
           min={0}
           defaultValue={line.deliveredQty ?? ''}
           placeholder="—"
-          onChange={(e) => {
-            // フェーズ1: モック（実際の送信処理はフェーズ2で実装）
-            console.log(`[MOCK] 納品数変更: ${line.item.name} → ${e.target.value}`);
-          }}
+          onChange={handleChange}
           className="w-20 rounded-md border border-gray-300 px-2 py-1 text-right text-sm font-semibold focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400"
           aria-label={`${line.item.name} 納品数`}
         />
